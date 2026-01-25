@@ -100,7 +100,7 @@ Pull-based ingestion would require custom connectors and duplicate governance lo
 ---
 
 ## Repository Structure
-prototype/
+agivant/
 ├── mock_iceberg_data.py
 ├── schema_mapping.py
 ├── main.py
