@@ -102,12 +102,10 @@ Pull-based ingestion would require custom connectors and duplicate governance lo
 ## Repository Structure
 
 agivant/
-├── mock_iceberg_data.py     # Mock Iceberg table rows
-├── schema_mapping.py        # Relational → graph mapping logic
-├── main.py                  # Driver script
-└── README.md                # Documentation
-
-
+|-- mock_iceberg_data.py      # Mock Iceberg table rows
+|-- schema_mapping.py         # Relational → graph mapping logic
+|-- main.py                   # Driver script
+|-- README.md                 # Documentation                
 
 ---
 
