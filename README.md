@@ -25,12 +25,6 @@ This prototype illustrates the **core transformation logic** required to achieve
 
 Data flows through the system as follows:
 
-- Iceberg tables stored on S3
-- Unity Catalog for schema discovery and access control
-- Databricks Spark for reading and transforming data
-- TigerGraph for storing vertices and edges
-
-
 - **Apache Iceberg** stores versioned, snapshot-based tabular data  
 - **Unity Catalog** provides centralized schema discovery and access control  
 - **Spark** performs extraction and relational-to-graph transformation  
@@ -58,16 +52,17 @@ Each transaction is modeled as a distinct edge, allowing:
 
 ## Prototype Scope
 
-This prototype is intentionally minimal and demonstrates:
+This prototype is intentionally lightweight and demonstrates:
 
-- Mocked Iceberg table rows (no real Iceberg dependency)
-- Explicit schema-aware mapping logic
-- Generation of TigerGraph-ready vertex and edge JSON
+- Spark-based ingestion logic for Apache Iceberg tables
+- Unity Catalog–based schema discovery and access control
+- Explicit relational-to-graph schema mapping
+- Generation of TigerGraph REST++ upsert payloads
+- Graceful fallback when full infrastructure is unavailable
 
-It does **not** include:
-- Real Spark jobs
-- Live Unity Catalog access
-- A running TigerGraph instance
+It does **not** require:
+- A locally running Databricks workspace
+- A locally running TigerGraph instance
 
 ---
 
@@ -79,7 +74,7 @@ It does **not** include:
 
 Batch ingestion is preferred because:
 - Iceberg is snapshot-oriented
-- TigerGraph supports high-throughput bulk loading
+- TigerGraph supports high-throughput batch-oriented ingestion via REST++ upserts and native loaders
 - Batch jobs are simpler to operate, debug, and rerun
 
 Streaming ingestion is acknowledged as a future extension for low-latency use cases but introduces additional operational complexity.
@@ -102,33 +97,84 @@ Pull-based ingestion would require custom connectors and duplicate governance lo
 ## Repository Structure
 
 agivant/
-- |-- mock_iceberg_data.py      # Mock Iceberg table rows
-- |-- schema_mapping.py         # Relational → graph mapping logic
-- |-- main.py                   # Driver script
-- |-- README.md                 # Documentation                
+- |-- spark_read_iceberg.py            # Spark-based Iceberg table reads via Unity Catalog
+- |-- transform_to_graph.py            # Relational → graph transformation logic
+- |-- spark_to_rest.py                 # Conversion of Spark rows to TigerGraph REST++ payloads
+- |-- tigergraph_client.py             # TigerGraph REST++ upsert client (with dry-run support)
+- |-- main.py                          # End-to-end driver (Databricks + local modes)
+- |-- README.md                        # Documentation
+- |-- Solution Proposal Document.pdf   # Architecture and tradeoff analysis              
 
 ---
 
 ## How the Prototype Works
 
-1. `mock_iceberg_data.py` simulates rows from Iceberg tables:
-   - users
-   - products
-   - transactions
+1. `spark_read_iceberg.py`  
+   Defines Spark logic to read Apache Iceberg tables using Unity Catalog identifiers.  
+   This code is intended to run inside a Databricks workspace where Unity Catalog is available.
 
-2. `schema_mapping.py` converts relational rows into:
-   - TigerGraph vertex representations
-   - TigerGraph edge representations
+2. `transform_to_graph.py`  
+   Applies schema-aware transformations to convert relational data into graph primitives:
+   - Entity rows → TigerGraph vertices
+   - Foreign-key relationships → TigerGraph edges
 
-3. `main.py` orchestrates the mapping and prints the results as JSON
+3. `spark_to_rest.py`  
+   Converts transformed Spark DataFrames into TigerGraph REST++–compatible JSON payloads for vertices and edges.
 
-In a production system, this logic would run inside a Spark job and output data to TigerGraph using:
-- GSQL loading jobs (batch)
-- REST++ APIs (incremental)
+4. `tigergraph_client.py`  
+   Implements REST++ upsert calls to TigerGraph, with support for a dry-run mode that prints payloads when a TigerGraph instance is not available.
+
+5. `main.py`  
+   Orchestrates the end-to-end pipeline:
+   - Runs Spark-based Iceberg ingestion in Databricks mode, or
+   - Falls back to local mock data in local execution mode  
+   
+   In both cases, the pipeline generates TigerGraph REST++ upsert payloads and demonstrates ingestion behavior.
+
+
+
+## Prototype Execution Modes
+
+The prototype supports two execution modes:
+
+### Databricks Mode (Full Integration)
+- Spark reads Apache Iceberg tables using Unity Catalog identifiers
+- Schema discovery and access control are enforced by Unity Catalog
+- Data is transformed using Spark DataFrames
+- Vertex and edge data is upserted into TigerGraph using REST++ APIs
+
+This mode is intended to run inside a Databricks workspace with Unity Catalog enabled.
+
+### Local Mode (Dry Run)
+- Unity Catalog and Iceberg tables are not available locally
+- The pipeline falls back to minimal mock data
+- Real TigerGraph REST++ payloads are generated and printed
+- No TigerGraph instance is required
+
+This mode validates transformation logic and TigerGraph API correctness without requiring full infrastructure.
+
+## Fault Tolerance and Reliability
+
+The pipeline is designed to be fault tolerant by construction:
+
+- **Iceberg snapshots** ensure consistent, repeatable reads
+- **Spark transformations** are deterministic and retryable
+- **Unity Catalog** enforces schema and permission validation at read time
+- **TigerGraph REST++ upserts** are idempotent, allowing safe retries
+- Partial failures can be recovered by replaying the same snapshot
+
+This design avoids duplicate graph entities and supports safe reprocessing.
 
 ---
 
 ## How to Run the Prototype
+
+### Notes on Execution
+
+- Spark and Unity Catalog integration is intended to run in Databricks
+- Local execution demonstrates fallback behavior and REST++ payload generation
+- Dry-run mode avoids requiring a running TigerGraph instance
+
 
 ### Prerequisites
 - Python 3.8 or later
