@@ -1,0 +1,31 @@
+USE GRAPH CommerceGraph
+
+CREATE LOADING JOB load_commerce_data FOR GRAPH CommerceGraph {
+
+  DEFINE FILENAME users_file;
+  DEFINE FILENAME products_file;
+  DEFINE FILENAME transactions_file;
+
+  LOAD users_file TO VERTEX User VALUES (
+    $0,        // user_id
+    $1,        // username
+    $2,        // email
+    $3         // created_at
+  ) USING HEADER="true", SEPARATOR=",";
+
+  LOAD products_file TO VERTEX Product VALUES (
+    $0,        // product_id
+    $1,        // category
+    $2,        // price
+    $3         // created_at
+  ) USING HEADER="true", SEPARATOR=",";
+
+  LOAD transactions_file TO EDGE Transaction VALUES (
+    $1,        // FROM user_id
+    $2,        // TO product_id
+    $0,        // txn_id
+    $3,        // amount
+    $4         // txn_timestamp
+  ) USING HEADER="true", SEPARATOR=",";
+
+}

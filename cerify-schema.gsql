@@ -1,0 +1,21 @@
+CREATE VERTEX User (
+  PRIMARY_ID user_id STRING,
+  username STRING,
+  email STRING,
+  created_at DATETIME
+)
+
+CREATE VERTEX Product (
+  PRIMARY_ID product_id STRING,
+  category STRING,
+  price FLOAT,
+  created_at DATETIME
+)
+
+CREATE DIRECTED EDGE Transaction (
+  FROM User,
+  TO Product,
+  txn_id STRING,
+  amount FLOAT,
+  txn_timestamp DATETIME
+)

@@ -1,0 +1,4 @@
+RUN LOADING JOB load_commerce_data USING
+  users_file="s3://agivant-s3-bucket/users.csv",
+  products_file="s3://agivant-s3-bucket/products.csv",
+  transactions_file="s3://agivant-s3-bucket/transactions.csv";
