@@ -1,0 +1,17 @@
+cat >> .gitignore << 'EOF'
+# Spark / Hadoop
+spark-*
+*.tgz
+
+# Data
+*.csv
+*.parquet
+*.avro
+
+# Mac
+.DS_Store
+
+# Python
+__pycache__/
+.env
+EOF
