@@ -5,7 +5,7 @@ client = TigerGraphClient(
     token="MY_API_TOKEN",
     graph="CommerceGraph"
 )
-
+ 
 users = [
     ("u1", "alice", "alice@example.com", "2026-02-02T23:27:24.288Z"),
     ("u2", "bob", "bob@example.com", "2026-02-02T23:27:24.288Z"),
