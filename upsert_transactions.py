@@ -1,34 +1,52 @@
+import os
+import csv
+from auth.tg_token import get_tg_token
 from tg_client import TigerGraphClient
 
+TG_HOST = os.getenv("TG_HOST")
+GRAPH = "commerceGraph"
+
 client = TigerGraphClient(
-    host="https://tg-441a7ba5-946d-4471-a7c0-22e5b0bc386f.tg-2635877100.i.tgcloud.io",
-    token="YOUR_API_TOKEN",
-    graph="CommerceGraph"
+    host = TG_HOST,
+    token = get_tg_token(),
+    graph = GRAPH
 )
 
-transactions = [
-    ("t1", "u1", "p1", 19.99, "2024-01-02T10:00:00.000Z"),
-    ("t2", "u1", "p2", 899.99, "2024-01-03T12:30:00.000Z"),
-]
+TRANSACTIONS_CSV = "transactions.csv"
 
-edges = {}
+edges = {
+    "User": {}
+}
 
-for txn_id, user_id, product_id, amount, ts in transactions:
-    edges.setdefault("User", {}).setdefault(user_id, {}).setdefault(
-        "Transaction", {}
-    ).setdefault("Product", {})[product_id] = {
-        "txn_id": {"value": txn_id},
-        "amount": {"value": amount},
-        "txn_timestamp": {"value": ts}
-    }
+with open(TRANSACTIONS_CSV, newline="") as f:
+    reader = csv.DictReader(f)
+
+    for row in reader:
+        user_id = row["user_id"]
+        product_id = row["product_id"]
+
+        edges["User"] \
+            .setdefault(user_id, {}) \
+            .setdefault("Transaction", {}) \
+            .setdefault("Product", {})[product_id] = {
+                "txn_id": {
+                    "value": row["txn_id"]          # discriminator
+                },
+                "amount": {
+                    "value": float(row["amount"])  
+                },
+                "txn_timestamp": {
+                    "value": row["txn_timestamp"]  
+                }
+            }
 
 payload = {
     "edges": edges
 }
 
-print(
-    client.upsert(
-        payload,
-        params={"vertex_must_exist": "true"}
-    )
+response = client.upsert(
+    payload,
+    params={"vertex_must_exist": "true"}
 )
+
+print(response)

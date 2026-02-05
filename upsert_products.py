@@ -1,27 +1,44 @@
+import os
+import csv
+from auth.tg_token import get_tg_token
 from tg_client import TigerGraphClient
 
+TG_HOST = os.getenv("TG_HOST")
+GRAPH = "commerceGraph"
+
 client = TigerGraphClient(
-    host="https://tg-441a7ba5-946d-4471-a7c0-22e5b0bc386f.tg-2635877100.i.tgcloud.io",
-    token="YOUR_API_TOKEN",
-    graph="CommerceGraph"
+    host = TG_HOST,
+    token = get_tg_token(),
+    graph = GRAPH
 )
 
-products = [
-    ("p1", "Books", 19.99, "2026-02-02T23:26:10.659Z"),
-    ("p2", "Electronics", 899.99, "2026-02-02T23:26:10.659Z"),
-]
+PRODUCTS_CSV = "products.csv"
+
+vertices = {}
+
+with open(PRODUCTS_CSV, newline="") as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        product_id = row["product_id"]
+
+        vertices[product_id] = {
+            "category": {
+                "value": row["category"]
+            },
+            "price": {
+                "value": float(row["price"])
+            },
+            "created_at": {
+                "value": row["created_at"]
+            }
+        }
 
 payload = {
     "vertices": {
-        "Product": {
-            pid: {
-                "category": {"value": category},
-                "price": {"value": price},
-                "created_at": {"value": created_at}
-            }
-            for pid, category, price, created_at in products
-        }
+        "Product": vertices
     }
 }
 
-print(client.upsert(payload))
+response = client.upsert(payload)
+
+print(response)

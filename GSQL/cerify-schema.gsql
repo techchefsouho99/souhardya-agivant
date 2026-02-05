@@ -15,7 +15,7 @@ CREATE VERTEX Product (
 CREATE DIRECTED EDGE Transaction (
   FROM User,
   TO Product,
-  txn_id STRING,
+  DISCRIMINATOR(txn_id STRING),
   amount FLOAT,
   txn_timestamp DATETIME
 )
