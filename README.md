@@ -2,53 +2,85 @@
 
 ## Overview
 
-This repository contains a **lightweight prototype** demonstrating how data stored in **Apache Iceberg** tables can be ingested into **TigerGraph** using a **push-based, batch-oriented integration design**, with **Databricks Unity Catalog** acting as the metadata and governance layer.
+This repository contains a push-based data integration prototype that demonstrates how data stored in Apache Iceberg (on S3) can be transformed and ingested into TigerGraph Cloud (Savanna) using:
 
-The prototype focuses on **design clarity and feasibility**, not on deploying real infrastructure. It demonstrates how relational data from Iceberg can be transformed into graph-ready data structures suitable for ingestion into TigerGraph.
+- Spark for data processing
+- REST++ APIs for graph ingestion
+- Idempotent upserts for reliability
+- Docker for repeatable execution
 
 ---
 
 ## Problem Statement
 
-The goal of this project is to design a data integration pipeline that:
+The goal of this project is to design and implement a pipeline that:
 
-1. Discovers source schemas from Iceberg tables using Unity Catalog  
-2. Maps relational/tabular data into graph structures (vertices and edges)  
-3. Transfers data from Iceberg (on S3) into TigerGraph  
-4. Supports repeatable and incremental graph updates  
+1. Reads relational / tabular data (Iceberg-style schemas)
+2. Maps tabular entities into a property graph
+3. Creates TigerGraph schema programmatically
+4. Loads vertices and edges using REST++ upserts
+5. Supports repeatable, idempotent, batch ingestion
+6. Can be executed locally or via Docker
 
-This prototype illustrates the **core transformation logic** required to achieve this.
+This repository demonstrates **how Iceberg-style datasets can be modeled and ingested into TigerGraph reliably**.
 
 ---
 
 ## High-Level Architecture
 
-Data flows through the system as follows:
-
-- **Apache Iceberg** stores versioned, snapshot-based tabular data  
-- **Unity Catalog** provides centralized schema discovery and access control  
-- **Spark** performs extraction and relational-to-graph transformation  
-- **TigerGraph** ingests transformed data as graph vertices and edges  
+Apache Iceberg (S3) --> Spark / Python (DataFrames / CSV) --> Relational → Graph Mapping --> TigerGraph REST++ APIs
+(Vertex + Edge Upserts) --> TigerGraph Cloud (Savanna)
 
 ---
 
 ## Graph Modeling Approach
 
-The graph schema follows a **property graph model**:
+### Vertex Types
+```
+CREATE VERTEX User (
+  PRIMARY_ID user_id STRING,
+  username STRING,
+  email STRING,
+  created_at DATETIME
+)
 
-### Vertices
-- `User`: represents a user or account
-- `Product`: represents a product or item
+CREATE VERTEX Product (
+  PRIMARY_ID product_id STRING,
+  category STRING,
+  price FLOAT,
+  created_at DATETIME
+)
+```
 
-### Edges
-- `PURCHASED`: represents a transactional relationship between a user and a product
+### Edge Type
+```
+CREATE DIRECTED EDGE Transaction (
+  FROM User,
+  TO Product,
+  DISCRIMINATOR (txn_id STRING),
+  amount FLOAT,
+  txn_timestamp DATETIME
+)
 
-Each transaction is modeled as a distinct edge, allowing:
-- Many-to-many relationships
-- Multiple transactions between the same user and product
-- Rich traversal and analytics use cases
+```
+
+### Why a Discriminator?
+Using txn_id as a DISCRIMINATOR allows:
+
+- Multiple transactions between the same User and Product
+- Unique identification of each transaction
+- Safe re-upserts without overwriting previous edges
 
 ---
+
+## Authentication Design
+
+### Token Generation
+TigerGraph tokens are generated once per process using:
+
+```
+POST /gsql/v1/tokens
+```
 
 ## Prototype Scope
 
