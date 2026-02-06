@@ -212,18 +212,38 @@ Edge attributes:
 - `amount`
 - `txn_timestamp`
 
-![Transaction Edge Schema](docs/images/schema_transaction_edge.png)
+![Transaction Edge Schema](docs/schema_transaction_edge.png)
+
+### User Vertex Attributes
+
+This view highlights the full attribute set for `User`, including:
+- `userrname`
+- `email`
+- `created_at`
+
+These attributes are populated via REST++ upserts from CSV / Spark output.
+
+![Product Vertex Details](docs/schema_user_details.png)
 
 ### Product Vertex Attributes
 
 This view highlights the full attribute set for `Product`, including:
 - `category`
 - `price`
-- `created timestamp
+- `created_at`
 
 These attributes are populated via REST++ upserts from CSV / Spark output.
 
-![Product Vertex Details](docs/images/schema_product_details.png)
+![Product Vertex Details](docs/schema_product_details.png)
+
+### Loaded Graph View
+
+After running the ingestion pipeline, the graph contains:
+- User vertices
+- Product vertices
+- Transaction edges linking them
+
+![Loaded Graph Overview](docs/graph_loaded_view.png)
 
 ## Execution Options
 ### Option 1: Local (Python)
