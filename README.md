@@ -4,10 +4,12 @@
 
 This repository contains a push-based data integration prototype that demonstrates how data stored in Apache Iceberg (on S3) can be transformed and ingested into TigerGraph Cloud (Savanna) using:
 
-- Spark for data processing
-- REST++ APIs for graph ingestion
-- Idempotent upserts for reliability
-- Docker for repeatable execution
+- **Spark** for data processing
+- **REST++ APIs** for graph ingestion
+- **Idempotent upserts** for reliability
+- **Docker** for repeatable execution
+
+The prototype focuses on **design clarity and correctness**, showing how Iceberg-style relational data can be modeled, transformed, and reliably ingested into a graph system.
 
 ---
 
@@ -16,20 +18,27 @@ This repository contains a push-based data integration prototype that demonstrat
 The goal of this project is to design and implement a pipeline that:
 
 1. Reads relational / tabular data (Iceberg-style schemas)
-2. Maps tabular entities into a property graph
-3. Creates TigerGraph schema programmatically
-4. Loads vertices and edges using REST++ upserts
-5. Supports repeatable, idempotent, batch ingestion
+2. Maps tabular entities into a **property graph**
+3. Creates TigerGraph schema **programmatically**
+4. Loads vertices and edges using **REST++ upserts**
+5. Supports **repeatable, idempotent, batch ingestion**
 6. Can be executed locally or via Docker
 
-This repository demonstrates **how Iceberg-style datasets can be modeled and ingested into TigerGraph reliably**.
+This repository demonstrates **how Iceberg-style datasets can be modeled and ingested into TigerGraph reliably**, without relying on manual GraphStudio steps.
 
 ---
 
 ## High-Level Architecture
 
-Apache Iceberg (S3) --> Spark / Python (DataFrames / CSV) --> Relational → Graph Mapping --> TigerGraph REST++ APIs
-(Vertex + Edge Upserts) --> TigerGraph Cloud (Savanna)
+Apache Iceberg (S3) 
+            ↓
+Spark / Python (DataFrames / CSV)
+            ↓ 
+Relational → Graph Mapping
+            ↓
+TigerGraph REST++ APIs(Vertex + Edge Upserts)
+            ↓
+TigerGraph Cloud (Savanna)
 
 ---
 
@@ -64,7 +73,7 @@ CREATE DIRECTED EDGE Transaction (
 ```
 
 ### Why a Discriminator?
-Using txn_id as a DISCRIMINATOR allows:
+Using ```txn_id``` as a DISCRIMINATOR allows:
 
 - Multiple transactions between the same User and Product
 - Unique identification of each transaction
