@@ -104,36 +104,103 @@ TG_SECRET=<gsql-secret>
 ```
 
 ---
-## How the Pipeline Works (Walkthrough)
+## TigerGraph Ingestion Pipeline (Code Walkthrough)
+This section explains how the **TigerGraph pipeline works end-to-end in code**.
 
-### Step 1: Generate Token
+The pipeline is intentionally split into **ordered**, **explicit phases** to avoid hidden behavior and to make failures easy to diagnose.
 
-- auth/tg_token.py requests a TigerGraph token
-- Token is cached for reuse
+### Phase 1: Schema Creation (Vertices & Edges)
+Schema creation is handled programmatically using the GSQL Schema REST API.
 
-### Step 2: Create Schema
+- Vertex schemas (```User```, ```Product```) are created first
+- Edge schema (```Transaction```) is created with a discriminator
+- Schema creation is idempotent — re-running the pipeline is safe
 
-- Vertices (User, Product) created via REST GSQL
-- Edge (Transaction) created with discriminator
-- Schema additions are idempotent
+### Phase 2: Graph Wiring (Attaching Schema to the Graph)
 
-### Step 3: Upsert Vertices
+In TigerGraph, **schema definition and graph membership are separate concerns**.
 
-- users.csv → User vertices
-- products.csv → Product vertices
-- Uses REST++ /restpp/graph/{graph} endpoint
+After defining vertex and edge schemas globally, they must be explicitly attached to the target graph (e.g. ```commerceGraph```).
 
-### Step 4: Upsert Edges
+Conceptually:
+```
+ALTER GRAPH commerceGraph ADD VERTEX User, Product;
+ALTER GRAPH commerceGraph ADD EDGE Transaction;
+```
+This step is critical:
+- Without it, REST++ upserts may succeed
+- But vertices and edges will not appear in Graph Explorer or queries
 
-- transactions.csv → Transaction edges
-- Ensures both vertices exist (vertex_must_exist=true)
-- Discriminator guarantees edge uniqueness
+The pipeline performs this wiring via REST APIs to ensure the graph is fully usable without manual intervention.
 
-### Step 5: Validation
+### Phase 3: Vertex Upserts (Users & Products)
 
-- Graph Studio Explore confirms:
-- 1. User → Product connections
-- 2. Multiple transactions per pair supported
+Vertex ingestion is driven from CSV files:
+- ```users.csv``` → User vertices
+- ```products.csv``` → Product vertices
+Each row is converted into a REST++ payload of the form:
+```
+{
+  "vertices": {
+    "User": {
+      "u1": {
+        "username": { "value": "alice" },
+        "email": { "value": "alice@example.com" },
+        "created_at": { "value": "2026-02-02T23:27:24.288Z" }
+      }
+    }
+  }
+}
+```
+REST++ **upsert semantics** ensure:
+
+- Missing vertices are created
+- Existing vertices are updated
+- Re-running the pipeline does not create duplicates
+
+### Phase 4: Edge Upserts (Transactions)
+
+Transactions are ingested as **discriminated edges**.
+Each row in ```transactions.csv``` becomes a unique edge identified by:
+```
+(User → Product, txn_id)
+```
+Conceptual payload:
+```
+{
+  "edges": {
+    "User": {
+      "u1": {
+        "Transaction": {
+          "Product": {
+            "p1": {
+              "txn_id": { "value": "t1" },
+              "amount": { "value": 19.99 },
+              "txn_timestamp": { "value": "2024-01-02T10:00:00.000Z" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+Key guarantees:
+- Multiple transactions between the same User and Product are preserved
+- No accidental overwrites occur
+- Idempotent retries are safe
+
+### Phase 5: Validation
+
+After ingestion:
+- GraphStudio Explore shows User → Product connectivity
+- Multiple Transaction edges per pair are visible
+- Graph queries return correct results
+
+## TigerGraph Schema Visualization
+The following diagram shows the actual graph schema and data loaded into TigerGraph Cloud, including `User` and `Product` vertices connected by `Transaction` edges.
+
+![TigerGraph Graph Schema](docs/tigergraph-schema.png)
 
 ## Execution Options
 ### Option 1: Local (Python)
@@ -184,7 +251,7 @@ It does **not** require:
 
 ### Batch vs Streaming
 
-**Chosen approach: Batch ingestion**
+#### Chosen approach: Batch ingestion
 
 Batch ingestion is preferred because:
 - Iceberg is snapshot-oriented
@@ -193,11 +260,9 @@ Batch ingestion is preferred because:
 
 Streaming ingestion is acknowledged as a future extension for low-latency use cases but introduces additional operational complexity.
 
----
-
 ### Push vs Pull
 
-**Chosen approach: Push-based ingestion**
+#### Chosen approach: Push-based ingestion**
 
 In this design:
 - Spark reads from Iceberg and pushes data into TigerGraph
@@ -207,26 +272,6 @@ In this design:
 Pull-based ingestion would require custom connectors and duplicate governance logic, increasing system complexity.
 
 ---
-
-## Prototype Execution Modes
-
-The prototype supports two execution modes:
-
-### Databricks Mode (Full Integration)
-- Spark reads Apache Iceberg tables using Unity Catalog identifiers
-- Schema discovery and access control are enforced by Unity Catalog
-- Data is transformed using Spark DataFrames
-- Vertex and edge data is upserted into TigerGraph using REST++ APIs
-
-This mode is intended to run inside a Databricks workspace with Unity Catalog enabled.
-
-### Local Mode (Dry Run)
-- Unity Catalog and Iceberg tables are not available locally
-- The pipeline falls back to minimal mock data
-- Real TigerGraph REST++ payloads are generated and printed
-- No TigerGraph instance is required
-
-This mode validates transformation logic and TigerGraph API correctness without requiring full infrastructure.
 
 ## Fault Tolerance and Reliability
 
