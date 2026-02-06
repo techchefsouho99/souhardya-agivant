@@ -123,8 +123,6 @@ TG_SECRET=<gsql-secret>
 - 2. Multiple transactions per pair supported
 
 ## Execution Options
-
-## Execution Options
 ### Option 1: Local (Python)
 ```
 export TG_HOST=...
