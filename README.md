@@ -61,7 +61,6 @@ CREATE DIRECTED EDGE Transaction (
   amount FLOAT,
   txn_timestamp DATETIME
 )
-
 ```
 
 ### Why a Discriminator?
@@ -81,6 +80,78 @@ TigerGraph tokens are generated once per process using:
 ```
 POST /gsql/v1/tokens
 ```
+The token is:
+- Cached in memory
+- Reused across all schema and upsert calls
+-  Never hardcoded in scripts
+Environment variables:
+```
+TG_HOST=https://<tgcloud-host>
+TG_SECRET=<gsql-secret>
+```
+
+---
+## How the Pipeline Works (Walkthrough)
+
+### Step 1: Generate Token
+
+- auth/tg_token.py requests a TigerGraph token
+- Token is cached for reuse
+
+### Step 2: Create Schema
+
+- Vertices (User, Product) created via REST GSQL
+- Edge (Transaction) created with discriminator
+- Schema additions are idempotent
+
+### Step 3: Upsert Vertices
+
+- users.csv → User vertices
+- products.csv → Product vertices
+- Uses REST++ /restpp/graph/{graph} endpoint
+
+### Step 4: Upsert Edges
+
+- transactions.csv → Transaction edges
+- Ensures both vertices exist (vertex_must_exist=true)
+- Discriminator guarantees edge uniqueness
+
+### Step 5: Validation
+
+- Graph Studio Explore confirms:
+- 1. User → Product connections
+- 2. Multiple transactions per pair supported
+
+## Execution Options
+
+## Execution Options
+### Option 1: Local (Python)
+```
+export TG_HOST=...
+export TG_SECRET=...
+
+python upsert_users.py
+python upsert_products.py
+python upsert_transactions.py
+```
+### Option 2: Docker (Recommended)
+#### Build
+```
+docker build -t agivant-tg-bootstrap .
+```
+#### Run
+```
+docker run --rm \
+  -e TG_HOST="https://<tgcloud-host>" \
+  -e TG_SECRET="<gsql-secret>" \
+  agivant-tg-bootstrap
+```
+Docker guarantees:
+
+- Correct execution order
+- Clean environment
+- One-shot bootstrap behavior
+
 
 ## Prototype Scope
 
@@ -126,45 +197,6 @@ Pull-based ingestion would require custom connectors and duplicate governance lo
 
 ---
 
-## Repository Structure
-
-agivant/
-- |-- spark_read_iceberg.py            # Spark-based Iceberg table reads via Unity Catalog
-- |-- transform_to_graph.py            # Relational → graph transformation logic
-- |-- spark_to_rest.py                 # Conversion of Spark rows to TigerGraph REST++ payloads
-- |-- tigergraph_client.py             # TigerGraph REST++ upsert client (with dry-run support)
-- |-- main.py                          # End-to-end driver (Databricks + local modes)
-- |-- README.md                        # Documentation
-- |-- Solution Proposal Document.pdf   # Architecture and tradeoff analysis              
-
----
-
-## How the Prototype Works
-
-1. `spark_read_iceberg.py`  
-   Defines Spark logic to read Apache Iceberg tables using Unity Catalog identifiers.  
-   This code is intended to run inside a Databricks workspace where Unity Catalog is available.
-
-2. `transform_to_graph.py`  
-   Applies schema-aware transformations to convert relational data into graph primitives:
-   - Entity rows → TigerGraph vertices
-   - Foreign-key relationships → TigerGraph edges
-
-3. `spark_to_rest.py`  
-   Converts transformed Spark DataFrames into TigerGraph REST++–compatible JSON payloads for vertices and edges.
-
-4. `tigergraph_client.py`  
-   Implements REST++ upsert calls to TigerGraph, with support for a dry-run mode that prints payloads when a TigerGraph instance is not available.
-
-5. `main.py`  
-   Orchestrates the end-to-end pipeline:
-   - Runs Spark-based Iceberg ingestion in Databricks mode, or
-   - Falls back to local mock data in local execution mode  
-   
-   In both cases, the pipeline generates TigerGraph REST++ upsert payloads and demonstrates ingestion behavior.
-
-
-
 ## Prototype Execution Modes
 
 The prototype supports two execution modes:
@@ -206,12 +238,3 @@ This design avoids duplicate graph entities and supports safe reprocessing.
 - Spark and Unity Catalog integration is intended to run in Databricks
 - Local execution demonstrates fallback behavior and REST++ payload generation
 - Dry-run mode avoids requiring a running TigerGraph instance
-
-
-### Prerequisites
-- Python 3.8 or later
-
-### Run Command
-
-```bash
-python main.py
