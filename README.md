@@ -29,32 +29,19 @@ This repository demonstrates **how Iceberg-style datasets can be modeled and ing
 ---
 
 ## High-Level Architecture
+```text
 Apache Iceberg (S3)
+  (Snapshot-based tables)
         ↓
-Spark / Python (DataFrames or CSV)
+Spark / Python
+  (DataFrames or CSV export)
         ↓
 Relational → Graph Mapping
+  (Entities → Vertices, FKs → Edges)
         ↓
 TigerGraph REST++ APIs
+  (Idempotent upserts)
         ↓
-TigerGraph Cloud (Savanna)
-
-Apache Iceberg (S3) 
-
-            ↓
-
-Spark / Python (DataFrames / CSV)
-
-            ↓ 
-
-Relational → Graph Mapping
-
-            ↓
-
-TigerGraph REST++ APIs(Vertex + Edge Upserts)
-
-            ↓
-
 TigerGraph Cloud (Savanna)
 
 ---
