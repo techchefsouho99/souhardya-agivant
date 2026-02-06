@@ -43,7 +43,7 @@ TigerGraph REST++ APIs
   (Idempotent upserts)
         ↓
 TigerGraph Cloud (Savanna)
-
+```
 ---
 
 ## Graph Modeling Approach
