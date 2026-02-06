@@ -202,6 +202,29 @@ The following diagram shows the actual graph schema and data loaded into TigerGr
 
 ![TigerGraph Graph Schema](docs/tigergraph-schema.png)
 
+### Transaction Edge (With Discriminator)
+
+The `Transaction` edge connects `User → Product` and uses `txn_id` as a **DISCRIMINATOR**.
+This allows multiple transactions between the same user and product without overwriting edges.
+
+Edge attributes:
+- `txn_id` (discriminator)
+- `amount`
+- `txn_timestamp`
+
+![Transaction Edge Schema](docs/images/schema_transaction_edge.png)
+
+### Product Vertex Attributes
+
+This view highlights the full attribute set for `Product`, including:
+- `category`
+- `price`
+- `created timestamp
+
+These attributes are populated via REST++ upserts from CSV / Spark output.
+
+![Product Vertex Details](docs/images/schema_product_details.png)
+
 ## Execution Options
 ### Option 1: Local (Python)
 ```
